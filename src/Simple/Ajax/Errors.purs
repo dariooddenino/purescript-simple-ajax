@@ -10,6 +10,7 @@ module Simple.Ajax.Errors
   , _formatError
   , _serverError
   , mapBasicError
+  , parseError
   ) where
 
 import Prelude
