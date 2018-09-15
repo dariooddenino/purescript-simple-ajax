@@ -11,11 +11,13 @@ import Prelude
 
 import Affjax (Response, URL, Request, defaultRequest, request)
 import Affjax.RequestBody as RequestBody
+import Affjax.RequestHeader (RequestHeader(..))
 import Affjax.ResponseFormat as ResponseFormat
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
 import Data.HTTP.Method (CustomMethod, Method(..))
 import Data.Maybe (Maybe(..))
+import Data.MediaType (MediaType(..))
 import Data.Variant (expand, inj)
 import Effect.Aff (Aff, Error, try)
 import Foreign (Foreign)
