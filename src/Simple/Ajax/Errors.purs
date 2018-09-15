@@ -11,6 +11,7 @@ module Simple.Ajax.Errors
   , _serverError
   , mapBasicError
   , parseError
+  , statusOk
   ) where
 
 import Prelude
