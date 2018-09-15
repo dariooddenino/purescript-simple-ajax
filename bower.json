@@ -1,5 +1,6 @@
 {
   "name": "purescript-simple-ajax",
+  "license": "MIT",
   "ignore": [
     "**/.*",
     "node_modules",
