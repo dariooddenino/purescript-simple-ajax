@@ -1,0 +1,16 @@
+{
+  "name": "purescript-simple-ajax",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^4.1.0",
+    "purescript-console": "^4.1.0",
+    "purescript-affjax": "^7.0.0",
+    "purescript-simple-json": "^4.2.0"
+  },
+  "devDependencies": {}
+}
