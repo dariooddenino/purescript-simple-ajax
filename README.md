@@ -15,6 +15,7 @@ All requests have 4 versions:
 `get` and `getR` don't have a underscore variant.
 
 Requests payload objects must implement an instance of `WriteForeign` and responses payload objects must implement an instance of `ReadForeign`.
+
 Check [simple-json](https://github.com/justinwoo/purescript-simple-json) documentation to learn more about this.
 
 ## Errors
