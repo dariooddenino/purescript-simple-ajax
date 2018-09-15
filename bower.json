@@ -2,7 +2,7 @@
   "name": "purescript-simple-ajax",
   "license": "MIT",
   "repository": {
-    "type":" git",
+    "type":"git",
     "url": "git://github.com/dariooddenino/purescript-simple-ajax.git"
   },
   "ignore": [
