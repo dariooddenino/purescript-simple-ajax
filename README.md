@@ -1,6 +1,6 @@
 # Purescript-Simple-Ajax
 
-A very opinionated library to work with AJAX and JSON.
+A very opinionated library to work with AJAX and JSON, using [`simple-json`](https://pursuit.purescript.org/packages/purescript-simple-json) and [`variant`](https://pursuit.purescript.org/packages/purescript-variant).
 
 Thanks to Vladimir Ciobanu for his [error handling solution](https://github.com/vladciobanu/purescript-affjax-errors).
 
@@ -54,3 +54,7 @@ main = launchAff_ $ do
     Right (res :: Baz) ->
       logShow res
 ```
+
+## Module documentation
+
+Module documentation is [published on Pursuit](http://pursuit.purescript.org/packages/purescript-simple-ajax).
