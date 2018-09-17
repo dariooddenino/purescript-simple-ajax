@@ -22,6 +22,10 @@ Check [simple-json](https://github.com/justinwoo/purescript-simple-json) documen
 
 The different types of error (`Error`, `ForeignError` and `ResponseFormatError`) are put together in a `Variant`.
 
+There are two type alias:
+- `HTTPError` containing the common http errors
+- `AjaxError` which extends `HTTPError` to add json parsing errors
+
 By using that library's function, it's possible to match on them:
 
 ```purs

@@ -4,6 +4,8 @@ module Simple.Ajax
   , putR, put, putR_, put_
   , deleteR, delete, deleteR_, delete_
   , patchR, patch, patchR_, patch_
+  , getR, get
+  , handleResponse, handleResponse_
   , module Simple.Ajax.Errors
   ) where
 
@@ -21,14 +23,14 @@ import Data.MediaType (MediaType(..))
 import Data.Variant (expand, inj)
 import Effect.Aff (Aff, Error, try)
 import Foreign (Foreign)
-import Simple.Ajax.Errors (BasicError', ParseError, _formatError, _serverError, mapBasicError, parseError, statusOk)
+import Simple.Ajax.Errors (HTTPError, AjaxError, _formatError, _serverError, mapBasicError, parseError, statusOk)
 import Simple.JSON (class ReadForeign, class WriteForeign, readJSON, writeJSON)
 
 handleResponse ::
   forall b.
   ReadForeign b =>
   Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
-  Either (BasicError' ParseError) b
+  Either AjaxError b
 handleResponse res = case res of
   Left e -> Left $ inj _serverError $ show e
   Right response ->
@@ -40,7 +42,7 @@ handleResponse res = case res of
 
 handleResponse_ ::
   Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
-  Either (BasicError' ()) Unit
+  Either HTTPError Unit
 handleResponse_ res = case res of
   Left e -> Left $ inj _serverError $ show e
   Right response -> case response.body of
@@ -64,7 +66,7 @@ simpleRequest :: forall a b.
   Request String ->
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 simpleRequest method req url content = do
   res <- try $ request $ req { method = method
                              , url = url
@@ -83,7 +85,7 @@ simpleRequest_ ::
   Request String ->
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 simpleRequest_ method req url content = do
   res <- try $ request $ req { method = method
                              , url = url
@@ -98,7 +100,7 @@ getR ::
   ReadForeign b =>
   Request String ->
   URL ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 getR req url = do
   res <- try $ request $ req { method = Left GET
                              , url = url
@@ -112,7 +114,7 @@ get ::
   forall b.
   ReadForeign b =>
   URL ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 get = getR defaultSimpleRequest
 
 -- | Makes a `POST` request, taking a `Request String`, an `URL` and an optional payload
@@ -123,7 +125,7 @@ postR :: forall a b.
   Request String ->
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 postR = simpleRequest (Left POST)
 
 -- | Makes a `POST` request, taking an `URL` and an optional payload
@@ -134,7 +136,7 @@ post ::
   ReadForeign b =>
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 post = postR defaultSimpleRequest
 
 -- | Makes a `POST` request, taking a `Request String`, an `URL` and an optional payload,
@@ -145,7 +147,7 @@ postR_ ::
   Request String ->
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 postR_ = simpleRequest_ (Left POST)
 
 -- | Makes a `POST` request, taking an `URL` and an optional payload,
@@ -155,7 +157,7 @@ post_ ::
   WriteForeign a =>
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 post_ = postR_ defaultSimpleRequest
 
 -- | Makes a `PUT` request, taking a `Request String`, an `URL` and an optional payload
@@ -166,7 +168,7 @@ putR :: forall a b.
   Request String ->
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 putR = simpleRequest (Left PUT)
 
 -- | Makes a `PUT` request, taking an `URL` and an optional payload
@@ -177,7 +179,7 @@ put ::
   ReadForeign b =>
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 put = putR defaultSimpleRequest
 
 -- | Makes a `PUT` request, taking a `Request String`, an `URL` and an optional payload,
@@ -188,7 +190,7 @@ putR_ ::
   Request String ->
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 putR_ = simpleRequest_ (Left PUT)
 
 -- | Makes a `PUT` request, taking an `URL` and an optional payload,
@@ -198,7 +200,7 @@ put_ ::
   WriteForeign a =>
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 put_ = putR_ defaultSimpleRequest
 
 -- | Makes a `PATCH` request, taking a `Request String`, an `URL` and an optional payload
@@ -209,7 +211,7 @@ patchR :: forall a b.
   Request String ->
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 patchR = simpleRequest (Left PATCH)
 
 -- | Makes a `PATCH` request, taking an `URL` and an optional payload
@@ -220,7 +222,7 @@ patch ::
   ReadForeign b =>
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 patch = patchR defaultSimpleRequest
 
 -- | Makes a `PATCH` request, taking a `Request String`, an `URL` and an optional payload,
@@ -231,7 +233,7 @@ patchR_ ::
   Request String ->
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 patchR_ = simpleRequest_ (Left PATCH)
 
 -- | Makes a `PATCH` request, taking an `URL` and an optional payload,
@@ -241,7 +243,7 @@ patch_ ::
   WriteForeign a =>
   URL ->
   Maybe a ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 patch_ = patchR_ defaultSimpleRequest
 
 -- | Makes a `DELETE` request, taking a `Request String` and an `URL`
@@ -250,7 +252,7 @@ deleteR :: forall b.
   ReadForeign b =>
   Request String ->
   URL ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 deleteR req url = simpleRequest (Left DELETE) req url (Nothing :: Maybe Foreign)
 
 -- | Makes a `DELETE` request, taking an `URL`
@@ -259,7 +261,7 @@ delete ::
   forall b.
   ReadForeign b =>
   URL ->
-  Aff (Either (BasicError' ParseError) b)
+  Aff (Either AjaxError b)
 delete = deleteR defaultSimpleRequest
 
 -- | Makes a `DELETE` request, taking a `Request String` and an `URL`,
@@ -267,12 +269,12 @@ delete = deleteR defaultSimpleRequest
 deleteR_ ::
   Request String ->
   URL ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 deleteR_ req url = simpleRequest_ (Left DELETE) req url (Nothing :: Maybe Foreign)
 
 -- | Makes a `DELETE` request, taking an `URL`,
 -- | ignoring the response payload.
 delete_ ::
   URL ->
-  Aff (Either (BasicError' ()) Unit)
+  Aff (Either HTTPError Unit)
 delete_ = deleteR_ defaultSimpleRequest

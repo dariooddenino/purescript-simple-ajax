@@ -1,6 +1,8 @@
 module Simple.Ajax.Errors
-  (BasicError'
+  ( BasicError
   , ParseError
+  , HTTPError
+  , AjaxError
   , _parseError
   , _badRequest
   , _unAuthorized
@@ -21,6 +23,11 @@ import Data.Variant (Variant, inj)
 import Foreign (ForeignError, MultipleErrors)
 import Type.Prelude (SProxy(..))
 
+-- | Basic error type containing the common http errors.
+type HTTPError = BasicError ()
+-- | Extends `HTTPError` to add json parsing errors.
+type AjaxError = BasicError ParseError
+
 statusOk :: StatusCode -> Boolean
 statusOk (StatusCode n) = n >= 200 && n < 300
 
@@ -34,7 +41,7 @@ _formatError = SProxy :: SProxy "formatError"
 _serverError = SProxy :: SProxy "serverError"
 
 type ParseError = (parseError :: MultipleErrors)
-type BasicError' e =
+type BasicError e =
   Variant
     ( badRequest :: String
     , unAuthorized :: Unit
@@ -46,7 +53,7 @@ type BasicError' e =
     | e
     )
 
-mapBasicError :: StatusCode -> String -> BasicError' ()
+mapBasicError :: StatusCode -> String -> BasicError ()
 mapBasicError (StatusCode n) m
   | n == 400 = inj _badRequest m
   | n == 401 = inj _unAuthorized unit
