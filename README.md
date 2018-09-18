@@ -1,6 +1,6 @@
 # Purescript-Simple-Ajax
 
-A very opinionated library to work with AJAX and JSON, using [`simple-json`](https://pursuit.purescript.org/packages/purescript-simple-json) and [`variant`](https://pursuit.purescript.org/packages/purescript-variant).
+An opinionated library to work with AJAX and JSON, using [`simple-json`](https://pursuit.purescript.org/packages/purescript-simple-json) and [`variant`](https://pursuit.purescript.org/packages/purescript-variant).
 
 Thanks to Vladimir Ciobanu for his [error handling solution](https://github.com/vladciobanu/purescript-affjax-errors).
 
@@ -54,7 +54,7 @@ main = launchAff_ $ do
         default "Generic error" 
         # on _notAuthorized $ const "Not authorized" 
         $ err
-      log err
+      log error
     Right (res :: Baz) ->
       logShow res
 ```
