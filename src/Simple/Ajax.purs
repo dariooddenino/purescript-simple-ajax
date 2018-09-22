@@ -12,8 +12,10 @@ module Simple.Ajax
 import Prelude
 
 import Affjax (Response, URL, Request, defaultRequest, request)
+import Affjax.RequestBody (RequestBody)
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader (RequestHeader(..))
+import Affjax.ResponseFormat (ResponseFormat)
 import Affjax.ResponseFormat as ResponseFormat
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
@@ -23,6 +25,8 @@ import Data.MediaType (MediaType(..))
 import Data.Variant (expand, inj)
 import Effect.Aff (Aff, Error, try)
 import Foreign (Foreign)
+import Prim.Row as Row
+import Record as Record
 import Simple.Ajax.Errors (HTTPError, AjaxError, _formatError, _serverError, mapBasicError, parseError, statusOk)
 import Simple.JSON (class ReadForeign, class WriteForeign, readJSON, writeJSON)
 
@@ -51,61 +55,128 @@ handleResponse_ res = case res of
         | statusOk response.status -> Right unit
         | otherwise -> Left $ expand $ mapBasicError response.status j
 
+
+-- | Writes the contest as JSON.
+writeContent ::
+  forall a.
+  WriteForeign a =>
+  Maybe a ->
+  Maybe RequestBody
+writeContent a = RequestBody.string <<< writeJSON <$> a
+
+-- | An utility method to build requests.
+defaults ::
+  forall rall rsub rx.
+  Row.Union rsub rall rx =>
+  Row.Nub rx rall =>
+  { | rall } ->
+  { | rsub } ->
+  { | rall }
+defaults = flip Record.merge
+
+-- | The rows of a `Request a`
+type RequestRow a = ( method          :: Either Method CustomMethod
+                    , url             :: URL
+                    , headers         :: Array RequestHeader
+                    , content         :: Maybe RequestBody
+                    , username        :: Maybe String
+                    , password        :: Maybe String
+                    , withCredentials :: Boolean
+                    , responseFormat  :: ResponseFormat a
+                    )
+
+type SimpleRequestRow = ( headers :: Array RequestHeader
+                        , username :: Maybe String
+                        , password :: Maybe String
+                        , withCredentials :: Boolean
+                        )
+
+-- | A Request object with only the allowed fields.
+type SimpleRequest = Record SimpleRequestRow
+
+
 defaultSimpleRequest :: Request String
 defaultSimpleRequest = defaultRequest { responseFormat = ResponseFormat.string
                                       , headers = [ Accept (MediaType "application/json") ]
                                       }
 
+-- | Takes a subset of a `SimpleRequest` and uses it to
+-- | override the fields of the defaultRequest
+buildRequest ::
+  forall r rx t.
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
+  Record (RequestRow String)
+buildRequest = defaults defaultSimpleRequest
+
 -- | Makes an HTTP request and tries to parse the response json.
 -- |
 -- | Helper methods are provided for the most common requests.
-simpleRequest :: forall a b.
+simpleRequest ::
+  forall a b r rx t.
   WriteForeign a =>
   ReadForeign b =>
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
   Either Method CustomMethod ->
-  Request String ->
+  { | r } ->
   URL ->
   Maybe a ->
   Aff (Either AjaxError b)
-simpleRequest method req url content = do
-  res <- try $ request $ req { method = method
+simpleRequest method r url content = do
+  let req = (buildRequest r) { method = method
                              , url = url
-                             , content = RequestBody.string <<< writeJSON <$> content
-                             , responseFormat = ResponseFormat.string
+                             , content = writeContent content
                              }
+  res <- try $ request req
   pure $ handleResponse res
 
 -- | Makes an HTTP request ignoring the response payload.
 -- |
 -- | Helper methods are provided for the most common requests.
 simpleRequest_ ::
-  forall a.
+  forall a r rx t.
   WriteForeign a =>
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
   Either Method CustomMethod ->
-  Request String ->
+  { | r } ->
   URL ->
   Maybe a ->
   Aff (Either HTTPError Unit)
-simpleRequest_ method req url content = do
-  res <- try $ request $ req { method = method
+simpleRequest_ method r url content = do
+  let req = (buildRequest r) { method = method
                              , url = url
-                             , content = RequestBody.string <<< writeJSON <$> content
+                             , content = writeContent content
                              }
+  res <- try $ request req
   pure $ handleResponse_ res
 
--- | Makes a `GET` request, taking a `Request String` and an `URL` as arguments
+-- | Makes a `GET` request, taking a subset of a `SimpleRequest` and an `URL` as arguments
 -- | and then tries to parse the response json.
 getR ::
-  forall b.
+  forall b r rx t.
   ReadForeign b =>
-  Request String ->
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Aff (Either AjaxError b)
-getR req url = do
-  res <- try $ request $ req { method = Left GET
+getR r url = do
+  let req = (buildRequest r) { method = Left GET
                              , url = url
                              , responseFormat = ResponseFormat.string
                              }
+  res <- try $ request req
   pure $ handleResponse res
 
 -- | Makes a `GET` request, taking an `URL` as argument
@@ -115,14 +186,18 @@ get ::
   ReadForeign b =>
   URL ->
   Aff (Either AjaxError b)
-get = getR defaultSimpleRequest
+get = getR {} -- defaultSimpleRequest
 
--- | Makes a `POST` request, taking a `Request String`, an `URL` and an optional payload
+-- | Makes a `POST` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload
 -- | and then tries to parse the response json.
-postR :: forall a b.
+postR :: forall a b r rx t.
   WriteForeign a =>
   ReadForeign b =>
-  Request String ->
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Maybe a ->
   Aff (Either AjaxError b)
@@ -137,14 +212,18 @@ post ::
   URL ->
   Maybe a ->
   Aff (Either AjaxError b)
-post = postR defaultSimpleRequest
+post = postR {}
 
--- | Makes a `POST` request, taking a `Request String`, an `URL` and an optional payload,
+-- | Makes a `POST` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload,
 -- | ignoring the response payload.
 postR_ ::
-  forall a.
+  forall a r rx t.
   WriteForeign a =>
-  Request String ->
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Maybe a ->
   Aff (Either HTTPError Unit)
@@ -158,14 +237,18 @@ post_ ::
   URL ->
   Maybe a ->
   Aff (Either HTTPError Unit)
-post_ = postR_ defaultSimpleRequest
+post_ = postR_ {}
 
--- | Makes a `PUT` request, taking a `Request String`, an `URL` and an optional payload
+-- | Makes a `PUT` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload
 -- | and then tries to parse the response json.
-putR :: forall a b.
+putR :: forall a b r rx t.
   WriteForeign a =>
   ReadForeign b =>
-  Request String ->
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Maybe a ->
   Aff (Either AjaxError b)
@@ -180,14 +263,18 @@ put ::
   URL ->
   Maybe a ->
   Aff (Either AjaxError b)
-put = putR defaultSimpleRequest
+put = putR {}
 
--- | Makes a `PUT` request, taking a `Request String`, an `URL` and an optional payload,
+-- | Makes a `PUT` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload,
 -- | ignoring the response payload.
 putR_ ::
-  forall a.
+  forall a r rx t.
   WriteForeign a =>
-  Request String ->
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Maybe a ->
   Aff (Either HTTPError Unit)
@@ -201,14 +288,18 @@ put_ ::
   URL ->
   Maybe a ->
   Aff (Either HTTPError Unit)
-put_ = putR_ defaultSimpleRequest
+put_ = putR_ {}
 
--- | Makes a `PATCH` request, taking a `Request String`, an `URL` and an optional payload
+-- | Makes a `PATCH` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload
 -- | and then tries to parse the response json.
-patchR :: forall a b.
+patchR :: forall a b r rx t.
   WriteForeign a =>
   ReadForeign b =>
-  Request String ->
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Maybe a ->
   Aff (Either AjaxError b)
@@ -223,14 +314,18 @@ patch ::
   URL ->
   Maybe a ->
   Aff (Either AjaxError b)
-patch = patchR defaultSimpleRequest
+patch = patchR {}
 
--- | Makes a `PATCH` request, taking a `Request String`, an `URL` and an optional payload,
+-- | Makes a `PATCH` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload,
 -- | ignoring the response payload.
 patchR_ ::
-  forall a.
+  forall a r rx t.
   WriteForeign a =>
-  Request String ->
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Maybe a ->
   Aff (Either HTTPError Unit)
@@ -244,13 +339,17 @@ patch_ ::
   URL ->
   Maybe a ->
   Aff (Either HTTPError Unit)
-patch_ = patchR_ defaultSimpleRequest
+patch_ = patchR_ {}
 
--- | Makes a `DELETE` request, taking a `Request String` and an `URL`
+-- | Makes a `DELETE` request, taking a subset of a `SimpleRequest` and an `URL`
 -- | and then tries to parse the response json.
-deleteR :: forall b.
+deleteR :: forall b r rx t.
   ReadForeign b =>
-  Request String ->
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Aff (Either AjaxError b)
 deleteR req url = simpleRequest (Left DELETE) req url (Nothing :: Maybe Foreign)
@@ -262,12 +361,17 @@ delete ::
   ReadForeign b =>
   URL ->
   Aff (Either AjaxError b)
-delete = deleteR defaultSimpleRequest
+delete = deleteR {}
 
--- | Makes a `DELETE` request, taking a `Request String` and an `URL`,
+-- | Makes a `DELETE` request, taking a subset of a `SimpleRequest` and an `URL`,
 -- | ignoring the response payload.
 deleteR_ ::
-  Request String ->
+  forall r rx t.
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
   URL ->
   Aff (Either HTTPError Unit)
 deleteR_ req url = simpleRequest_ (Left DELETE) req url (Nothing :: Maybe Foreign)
@@ -277,4 +381,4 @@ deleteR_ req url = simpleRequest_ (Left DELETE) req url (Nothing :: Maybe Foreig
 delete_ ::
   URL ->
   Aff (Either HTTPError Unit)
-delete_ = deleteR_ defaultSimpleRequest
+delete_ = deleteR_ {}

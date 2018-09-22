@@ -1,5 +1,6 @@
 module Simple.Ajax.Errors
   ( BasicError
+  , BasicErrorRow
   , ParseError
   , HTTPError
   , AjaxError
@@ -41,8 +42,7 @@ _formatError = SProxy :: SProxy "formatError"
 _serverError = SProxy :: SProxy "serverError"
 
 type ParseError = (parseError :: MultipleErrors)
-type BasicError e =
-  Variant
+type BasicErrorRow e =
     ( badRequest :: String
     , unAuthorized :: Unit
     , forbidden :: Unit
@@ -52,6 +52,7 @@ type BasicError e =
     , serverError :: String
     | e
     )
+type BasicError e = Variant (BasicErrorRow e)
 
 mapBasicError :: StatusCode -> String -> BasicError ()
 mapBasicError (StatusCode n) m

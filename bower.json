@@ -17,5 +17,7 @@
     "purescript-affjax": "^7.0.0",
     "purescript-simple-json": "^4.2.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "purescript-debug": "^4.0.0"
+  }
 }
