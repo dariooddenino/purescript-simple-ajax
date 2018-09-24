@@ -26,9 +26,10 @@ an argument.
 
 ```purs
 type SimpleRequest = { headers :: Array RequestHeader
-                     , username :: Maybe String
-                     , password :: Maybe String
+                     , username        :: Maybe String
+                     , password        :: Maybe String
                      , withCredentials :: Boolean
+                     , retryPolicy     :: Maybe RetryPolicy
                      }
 ```
 
@@ -37,8 +38,6 @@ For example:
 ```purs
 getR { withCredentials: true } "http://www.google.it"
 ```
-
-
 
 ## Errors
 
@@ -57,6 +56,12 @@ let error =
   # on _badRequest identity
   # on _parseError $ intercalate ", " <<< map renderForeignError
   $ err
+```
+
+## Retries
+
+``` purs
+getR { retryPolicy: defaultRetryPolicy } url
 ```
 
 ## Example usage
@@ -80,10 +85,6 @@ main = launchAff_ $ do
     Right (res :: Baz) ->
       logShow res
 ```
-
-## Retries
-
-* TODO: find a way to handle retries.
 
 ## Module documentation
 

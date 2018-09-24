@@ -1,5 +1,6 @@
 module Simple.Ajax
   ( simpleRequest, simpleRequest_
+  , SimpleRequest, SimpleRequestRow
   , postR, post, postR_, post_
   , putR, put, putR_, put_
   , deleteR, delete, deleteR_, delete_
@@ -11,7 +12,7 @@ module Simple.Ajax
 
 import Prelude
 
-import Affjax (Response, URL, Request, defaultRequest, request)
+import Affjax (Request, Response, RetryPolicy, URL, defaultRequest, request, retry)
 import Affjax.RequestBody (RequestBody)
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader (RequestHeader(..))
@@ -29,6 +30,7 @@ import Prim.Row as Row
 import Record as Record
 import Simple.Ajax.Errors (HTTPError, AjaxError, _formatError, _serverError, mapBasicError, parseError, statusOk)
 import Simple.JSON (class ReadForeign, class WriteForeign, readJSON, writeJSON)
+import Type.Prelude (SProxy(..))
 
 handleResponse ::
   forall b.
@@ -54,7 +56,6 @@ handleResponse_ res = case res of
       Right j
         | statusOk response.status -> Right unit
         | otherwise -> Left $ expand $ mapBasicError response.status j
-
 
 -- | Writes the contest as JSON.
 writeContent ::
@@ -83,22 +84,28 @@ type RequestRow a = ( method          :: Either Method CustomMethod
                     , password        :: Maybe String
                     , withCredentials :: Boolean
                     , responseFormat  :: ResponseFormat a
+                    , retryPolicy     :: Maybe RetryPolicy
                     )
 
-type SimpleRequestRow = ( headers :: Array RequestHeader
-                        , username :: Maybe String
-                        , password :: Maybe String
+type SimpleRequestRow = ( headers         :: Array RequestHeader
+                        , username        :: Maybe String
+                        , password        :: Maybe String
                         , withCredentials :: Boolean
+                        , retryPolicy     :: Maybe RetryPolicy
                         )
 
 -- | A Request object with only the allowed fields.
 type SimpleRequest = Record SimpleRequestRow
 
 
-defaultSimpleRequest :: Request String
-defaultSimpleRequest = defaultRequest { responseFormat = ResponseFormat.string
-                                      , headers = [ Accept (MediaType "application/json") ]
-                                      }
+defaultSimpleRequest :: Record (RequestRow String)
+defaultSimpleRequest = Record.merge { responseFormat : ResponseFormat.string
+                                    , headers : [ Accept (MediaType "application/json") ]
+                                    , retryPolicy : Nothing
+                                    } defaultRequest
+
+toReq :: Record (RequestRow String) -> Request String
+toReq = Record.delete (SProxy :: SProxy "retryPolicy")
 
 -- | Takes a subset of a `SimpleRequest` and uses it to
 -- | override the fields of the defaultRequest
@@ -133,7 +140,9 @@ simpleRequest method r url content = do
                              , url = url
                              , content = writeContent content
                              }
-  res <- try $ request req
+  res <- case req.retryPolicy of
+    Nothing -> try $ request $ toReq req
+    Just p -> try $ retry p request $ toReq req
   pure $ handleResponse res
 
 -- | Makes an HTTP request ignoring the response payload.
@@ -156,7 +165,9 @@ simpleRequest_ method r url content = do
                              , url = url
                              , content = writeContent content
                              }
-  res <- try $ request req
+  res <- case req.retryPolicy of
+    Nothing -> try $ request $ toReq req
+    Just p -> try $ retry p request $ toReq req
   pure $ handleResponse_ res
 
 -- | Makes a `GET` request, taking a subset of a `SimpleRequest` and an `URL` as arguments
@@ -176,7 +187,9 @@ getR r url = do
                              , url = url
                              , responseFormat = ResponseFormat.string
                              }
-  res <- try $ request req
+  res <- case req.retryPolicy of
+    Nothing -> try $ request $ toReq req
+    Just p -> try $ retry p request $ toReq req
   pure $ handleResponse res
 
 -- | Makes a `GET` request, taking an `URL` as argument

@@ -46,6 +46,15 @@ exports.startServer = function (errback, callback) {
     res.status(401).send();
   });
 
+  var retry = 0
+  app.delete('/timed_fails', function(req, res) {
+    if (retry = 0) {
+      retry++
+      return
+    }
+    res.json({ foo: "bar" })
+  })
+
   var server = app.listen(function () {
     callback({ port: server.address().port, server: server });
   });
