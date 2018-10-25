@@ -28,7 +28,9 @@ import Effect.Aff (Aff, Error, try)
 import Foreign (Foreign)
 import Prim.Row as Row
 import Record as Record
-import Simple.Ajax.Errors (HTTPError, AjaxError, _formatError, _serverError, mapBasicError, parseError, statusOk)
+import Simple.Ajax.Errors (HTTPError, AjaxError, _parseError, _badRequest, _unAuthorized,
+                           _forbidden, _notFound, _methodNotAllowed, _formatError, _serverError,
+                           mapBasicError, parseError, statusOk)
 import Simple.JSON (class ReadForeign, class WriteForeign, readJSON, writeJSON)
 import Type.Prelude (SProxy(..))
 
