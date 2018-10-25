@@ -2,6 +2,9 @@
 
 An opinionated library to work with AJAX and JSON, using [`simple-json`](https://pursuit.purescript.org/packages/purescript-simple-json) and [`variant`](https://pursuit.purescript.org/packages/purescript-variant).
 
+A more detailed guide can be found [here](http://codingstruggles.com/purescript/purescript-simple-ajax.html).
+
+
 Thanks to Vladimir Ciobanu for his [error handling solution](https://github.com/vladciobanu/purescript-affjax-errors).
 
 ## Functions
