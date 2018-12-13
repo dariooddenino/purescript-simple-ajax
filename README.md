@@ -15,6 +15,8 @@ All requests have 4 versions:
 - `postR`: Like `post`, but takes a subset of a `SimpleRequest` as an additional argument (for example if additional headers are needed).
 - `postR_`: Like `post_`, but takes a subset of a `SimpleRequest` as an additional argument.
 
+`POST` requests also have variations that includes the response headers. `(Tuple (Array ResponseHeader) b)` is returned in place of `b`, where `b` is just `unit` in the `_` versions: `postH`, `postH_`, `postRH`, `postRH_`
+
 `get` and `getR` don't have a underscore version.
 
 Requests payload objects must implement an instance of `WriteForeign` and responses payload objects must implement an instance of `ReadForeign`.
@@ -23,7 +25,7 @@ Check [simple-json](https://github.com/justinwoo/purescript-simple-json) documen
 
 ## Requests
 
-`simpleRequest`, `getR`, `postR`, `putR`, `deleteR` and `patchR` (and the
+`simpleRequest`, `getR`, `postR`, `postRH`, `putR`, `deleteR` and `patchR` (and the
 versions ending with an underscore) accept a subset of a `SimpleRequest` as
 an argument. 
 

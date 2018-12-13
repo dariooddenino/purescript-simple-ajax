@@ -1,7 +1,7 @@
 module Simple.Ajax
   ( simpleRequest, simpleRequest_
   , SimpleRequest, SimpleRequestRow
-  , postR, post, postR_, post_
+  , postR, post, postR_, post_, postH, postH_, postRH, postRH_
   , putR, put, putR_, put_
   , deleteR, delete, deleteR_, delete_
   , patchR, patch, patchR_, patch_
@@ -18,46 +18,59 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader (RequestHeader(..))
 import Affjax.ResponseFormat (ResponseFormat)
 import Affjax.ResponseFormat as ResponseFormat
+import Affjax.ResponseHeader (ResponseHeader)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
 import Data.HTTP.Method (CustomMethod, Method(..))
 import Data.Maybe (Maybe(..))
 import Data.MediaType (MediaType(..))
+import Data.Tuple (Tuple(..), snd)
 import Data.Variant (expand, inj)
 import Effect.Aff (Aff, Error, try)
 import Foreign (Foreign)
 import Prim.Row as Row
 import Record as Record
-import Simple.Ajax.Errors (HTTPError, AjaxError, _parseError, _badRequest, _unAuthorized,
-                           _forbidden, _notFound, _methodNotAllowed, _formatError, _serverError,
-                           mapBasicError, parseError, statusOk)
+import Simple.Ajax.Errors (HTTPError, AjaxError, _parseError, _badRequest, _unAuthorized, _forbidden, _notFound, _methodNotAllowed, _formatError, _serverError, mapBasicError, parseError, statusOk)
 import Simple.JSON (class ReadForeign, class WriteForeign, readJSON, writeJSON)
 import Type.Prelude (SProxy(..))
+
+handleResponseH :: 
+  forall b.
+  ReadForeign b =>
+  Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
+  Either AjaxError (Tuple (Array ResponseHeader) b)
+handleResponseH res = case res of 
+  Left e -> Left $ inj _serverError $ show e
+  Right response ->
+    case response.body of
+      Left (ResponseFormat.ResponseFormatError err _) -> Left $ inj _formatError err
+      Right j
+        | statusOk response.status -> (Tuple response.headers) <$> (lmap (expand <<< parseError) (readJSON j))
+        | otherwise -> Left $ expand $ mapBasicError response.status j
 
 handleResponse ::
   forall b.
   ReadForeign b =>
   Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
   Either AjaxError b
-handleResponse res = case res of
+handleResponse res = snd <$> (handleResponseH res)
+
+
+handleResponseH_ ::
+  Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
+  Either HTTPError (Tuple (Array ResponseHeader) Unit)
+handleResponseH_ res = case res of
   Left e -> Left $ inj _serverError $ show e
-  Right response ->
-    case response.body of
+  Right response -> case response.body of
       Left (ResponseFormat.ResponseFormatError err _) -> Left $ inj _formatError err
       Right j
-        | statusOk response.status -> lmap (expand <<< parseError) (readJSON j)
+        | statusOk response.status -> Right (Tuple response.headers unit)
         | otherwise -> Left $ expand $ mapBasicError response.status j
 
 handleResponse_ ::
   Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
   Either HTTPError Unit
-handleResponse_ res = case res of
-  Left e -> Left $ inj _serverError $ show e
-  Right response -> case response.body of
-      Left (ResponseFormat.ResponseFormatError err _) -> Left $ inj _formatError err
-      Right j
-        | statusOk response.status -> Right unit
-        | otherwise -> Left $ expand $ mapBasicError response.status j
+handleResponse_ res = snd <$> (handleResponseH_ res)
 
 -- | Writes the contest as JSON.
 writeContent ::
@@ -147,9 +160,37 @@ simpleRequest method r url content = do
     Just p -> try $ retry p request $ toReq req
   pure $ handleResponse res
 
+
+
+-- | Makes an HTTP request and tries to parse the response json.
+-- |
+-- | Helper methods are provided for the most common requests.
+simpleRequest' ::
+  forall a r rx t.
+  WriteForeign a =>
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  Either Method CustomMethod ->
+  { | r } ->
+  URL ->
+  Maybe a ->
+  Aff (Either Error (Response (Either ResponseFormat.ResponseFormatError String)))
+simpleRequest' method r url content = do
+  let req = (buildRequest r) { method = method
+                             , url = url
+                             , content = writeContent content
+                             }
+  case req.retryPolicy of
+    Nothing -> try $ request $ toReq req
+    Just p -> try $ retry p request $ toReq req
+  
 -- | Makes an HTTP request ignoring the response payload.
 -- |
 -- | Helper methods are provided for the most common requests.
+
+  
 simpleRequest_ ::
   forall a r rx t.
   WriteForeign a =>
@@ -162,16 +203,38 @@ simpleRequest_ ::
   URL ->
   Maybe a ->
   Aff (Either HTTPError Unit)
-simpleRequest_ method r url content = do
-  let req = (buildRequest r) { method = method
-                             , url = url
-                             , content = writeContent content
-                             }
-  res <- case req.retryPolicy of
-    Nothing -> try $ request $ toReq req
-    Just p -> try $ retry p request $ toReq req
-  pure $ handleResponse_ res
+simpleRequest_ m r u a = handleResponse_ <$> (simpleRequest' m r u a)
 
+simpleRequestH_ ::
+  forall a r rx t.
+  WriteForeign a =>
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  Either Method CustomMethod ->
+  { | r } ->
+  URL ->
+  Maybe a ->
+  Aff (Either HTTPError (Tuple (Array ResponseHeader) Unit))
+simpleRequestH_ m r u a = handleResponseH_ <$> (simpleRequest' m r u a)
+
+
+simpleRequestH ::
+  forall a b r rx t.
+  WriteForeign a =>
+  ReadForeign b =>
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  Either Method CustomMethod ->
+  { | r } ->
+  URL ->
+  Maybe a ->
+  Aff (Either AjaxError (Tuple (Array ResponseHeader) b))
+simpleRequestH m r u a = handleResponseH <$> (simpleRequest' m r u a)
+ 
 -- | Makes a `GET` request, taking a subset of a `SimpleRequest` and an `URL` as arguments
 -- | and then tries to parse the response json.
 getR ::
@@ -218,6 +281,22 @@ postR :: forall a b r rx t.
   Aff (Either AjaxError b)
 postR = simpleRequest (Left POST)
 
+-- | Makes a `POST` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload
+-- | and then tries to parse the response json, and provides the response headers.
+postRH :: forall a b r rx t.
+  WriteForeign a =>
+  ReadForeign b =>
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
+  URL ->
+  Maybe a ->
+  Aff (Either AjaxError (Tuple (Array ResponseHeader) b))
+postRH = simpleRequestH (Left POST)
+
+
 -- | Makes a `POST` request, taking an `URL` and an optional payload
 -- | trying to parse the response json.
 post ::
@@ -228,6 +307,18 @@ post ::
   Maybe a ->
   Aff (Either AjaxError b)
 post = postR {}
+
+-- | Makes a `POST` request, taking an `URL` and an optional payload
+-- | trying to parse the response json.
+postH ::
+  forall a b.
+  WriteForeign a =>
+  ReadForeign b =>
+  URL ->
+  Maybe a ->
+  Aff (Either AjaxError (Tuple (Array ResponseHeader) b))
+postH = postRH {}
+
 
 -- | Makes a `POST` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload,
 -- | ignoring the response payload.
@@ -244,6 +335,22 @@ postR_ ::
   Aff (Either HTTPError Unit)
 postR_ = simpleRequest_ (Left POST)
 
+-- | Makes a `POST` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload,
+-- | ignoring the response payload.
+postRH_ ::
+  forall a r rx t.
+  WriteForeign a =>
+  Row.Union r SimpleRequestRow rx =>
+  Row.Union r (RequestRow String) t =>
+  Row.Nub rx SimpleRequestRow =>
+  Row.Nub t (RequestRow String) =>
+  { | r } ->
+  URL ->
+  Maybe a ->
+  Aff (Either HTTPError (Tuple (Array ResponseHeader) Unit))
+postRH_ = simpleRequestH_ (Left POST)
+
+
 -- | Makes a `POST` request, taking an `URL` and an optional payload,
 -- | ignoring the response payload.
 post_ ::
@@ -253,6 +360,17 @@ post_ ::
   Maybe a ->
   Aff (Either HTTPError Unit)
 post_ = postR_ {}
+
+-- | Makes a `POST` request, taking an `URL` and an optional payload,
+-- | ignoring the response payload.
+postH_ ::
+  forall a.
+  WriteForeign a =>
+  URL ->
+  Maybe a ->
+  Aff (Either HTTPError (Tuple (Array ResponseHeader) Unit))
+postH_ = postRH_ {}
+
 
 -- | Makes a `PUT` request, taking a subset of a `SimpleRequest`, an `URL` and an optional payload
 -- | and then tries to parse the response json.
