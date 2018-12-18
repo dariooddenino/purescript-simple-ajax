@@ -55,7 +55,6 @@ assertEq :: forall a. Eq a => Show a => a -> a -> Aff Unit
 assertEq x y =
   when (x /= y) $ assertFail $ "Expected " <> show x <> ", got " <> show y
 
-
 assertError ::
   forall sym a t r.
   IsSymbol sym =>
@@ -93,7 +92,6 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
 
     A.log "GET /does-not-exist: should be 404 Not found after retries"
     SA.getR { retryPolicy: Just retryPolicy } doesNotExist >>= assertLeft >>= \e -> do
-      logShow e
       assertError SAE._notFound e
 
     A.log "GET /does-not-exist: should be 404 Not found"
