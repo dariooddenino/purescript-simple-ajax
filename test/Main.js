@@ -25,6 +25,11 @@ exports.startServer = function (errback, callback) {
     res.send('TODO');
   });
 
+  app.post('/register', function(req, res) {
+    res.set('Authorization', 'Bearer: fake_token');
+    res.json({result: "Thanks"});
+  });
+
   app.get('/not-json', function(req, res) {
     res.header({'content-type': 'text/plain'});
     res.send('This is not JSON');

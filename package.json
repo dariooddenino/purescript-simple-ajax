@@ -1,0 +1,22 @@
+{
+  "name": "purescript-simple-ajax",
+  "version": "1.0.0",
+  "description": "An opinionated library to work with AJAX and JSON, using [`simple-json`](https://pursuit.purescript.org/packages/purescript-simple-json) and [`variant`](https://pursuit.purescript.org/packages/purescript-variant).",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dariooddenino/purescript-simple-ajax.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dariooddenino/purescript-simple-ajax/issues"
+  },
+  "homepage": "https://github.com/dariooddenino/purescript-simple-ajax#readme",
+  "devDependencies": {
+    "express": "^4.16.4",
+    "xhr2": "^0.1.4"
+  }
+}

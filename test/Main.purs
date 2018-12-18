@@ -3,12 +3,15 @@ module Test.Main where
 import Prelude
 
 import Affjax as AX
+import Affjax.ResponseHeader (ResponseHeader, responseHeaderName)
 import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.Error.Class (throwError)
+import Data.Array (filter, null)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
 import Data.Symbol (class IsSymbol)
 import Data.Time.Duration (Milliseconds(..))
+import Data.Tuple (Tuple(..))
 import Data.Variant (default, on)
 import Effect (Effect)
 import Effect.Aff (Aff, finally, forkAff, killFiber, runAff)
@@ -63,6 +66,8 @@ assertError s err = default (assertFail "Expected a different status error")
                 # on s (const $ pure unit)
                 $ err
 
+type UserRequest = {username:: String, password :: String}
+
 main :: Effect Unit
 main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log "affjax: All good!")) do
   let ok200 = StatusCode 200
@@ -77,6 +82,7 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
     A.log ("Test server running on port " <> show port)
 
     let prefix = append ("http://localhost:" <> show port)
+    let register = prefix "/register"
     let mirror = prefix "/mirror"
     let putUrl = prefix "/put"
     let timedFailsUrl = prefix "/timed_fails"
@@ -103,6 +109,12 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
     SA.get notJson >>= assertLeft >>= \e -> do
       assertError SAE._parseError e
 
+    A.log "POST /register: should return a response header"
+    SA.postH_ register (Just {username : "test", password : "test"}) >>= assertRight >>= \(v :: (Tuple (Array ResponseHeader) Unit)) ->
+      case v of 
+        (Tuple headers _) -> 
+          assertMsg "Response headers did not contain expected header" (null $ filter (\h -> (responseHeaderName h) == "Authorization") headers)
+        
     A.log "POST /mirror: should use the POST method"
     SA.post mirror (Just { foo: "test" }) >>= assertRight >>= \res -> do
       assertEq res { foo: "test" }
