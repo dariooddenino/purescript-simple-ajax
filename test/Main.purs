@@ -3,7 +3,7 @@ module Test.Main where
 import Prelude
 
 import Affjax as AX
-import Affjax.ResponseHeader (ResponseHeader, responseHeaderName)
+import Affjax.ResponseHeader (ResponseHeader, name)
 import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.Error.Class (throwError)
 import Data.Array (filter, null)
@@ -111,10 +111,10 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
 
     A.log "POST /register: should return a response header"
     SA.postH_ register (Just {username : "test", password : "test"}) >>= assertRight >>= \(v :: (Tuple (Array ResponseHeader) Unit)) ->
-      case v of 
-        (Tuple headers _) -> 
-          assertMsg "Response headers did not contain expected header" (null $ filter (\h -> (responseHeaderName h) == "Authorization") headers)
-        
+      case v of
+        (Tuple headers _) ->
+          assertMsg "Response headers did not contain expected header" (null $ filter (\h -> (name h) == "Authorization") headers)
+
     A.log "POST /mirror: should use the POST method"
     SA.post mirror (Just { foo: "test" }) >>= assertRight >>= \res -> do
       assertEq res { foo: "test" }
