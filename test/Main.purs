@@ -73,9 +73,9 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
   let ok200 = StatusCode 200
   let notFound404 = StatusCode 404
 
-  let retryPolicy = AX.defaultRetryPolicy { timeout = Just (Milliseconds 500.0)
-                                          , shouldRetryWithStatusCode = \_ -> true
-                                          }
+  -- let retryPolicy = AX.defaultRetryPolicy { timeout = Just (Milliseconds 500.0)
+  --                                         , shouldRetryWithStatusCode = \_ -> true
+  --                                         }
 
   { server, port } ← fromEffectFnAff startServer
   finally (fromEffectFnAff (stopServer server)) do
@@ -90,9 +90,9 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
     let doesNotExist = prefix "/does-not-exist"
     let notJson = prefix "/not-json"
 
-    A.log "GET /does-not-exist: should be 404 Not found after retries"
-    SA.getR { retryPolicy: Just retryPolicy } doesNotExist >>= assertLeft >>= \e -> do
-      assertError SAE._notFound e
+    -- A.log "GET /does-not-exist: should be 404 Not found after retries"
+    -- SA.getR { retryPolicy: Just retryPolicy } doesNotExist >>= assertLeft >>= \e -> do
+    --   assertError SAE._notFound e
 
     A.log "GET /does-not-exist: should be 404 Not found"
     SA.get doesNotExist >>= assertLeft >>= \e -> do
@@ -124,9 +124,9 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
     SA.put putUrl (Just content) >>= assertRight >>= \res -> do
       assertEq res { foo: 1, bar: content }
 
-    A.log "DELETE on errors with retry"
-    SA.deleteR { retryPolicy: Just retryPolicy } timedFailsUrl >>= assertRight >>= \res -> do
-      assertEq res { foo: "bar" }
+    -- A.log "DELETE on errors with retry"
+    -- SA.deleteR { retryPolicy: Just retryPolicy } timedFailsUrl >>= assertRight >>= \res -> do
+    --   assertEq res { foo: "bar" }
 
     A.log "Testing CORS, HTTPS"
     SA.get "https://cors-test.appspot.com/test" >>= assertRight >>= \res -> do

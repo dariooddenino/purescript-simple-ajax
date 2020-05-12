@@ -13,11 +13,12 @@
   ],
   "dependencies": {
     "purescript-prelude": "^4.1.1",
-    "purescript-console": "^4.1.0",
-    "purescript-affjax": "^9.0.0",
-    "purescript-simple-json": "^v7.0.0"
+    "purescript-affjax": "^10.0.0",
+    "purescript-simple-json": "^7.0.0",
+    "purescript-aff-retry": "^1.2.1"
   },
   "devDependencies": {
-    "purescript-debug": "^4.0.0"
+    "purescript-debug": "^4.0.0",
+    "purescript-console": "^4.1.0"
   }
 }
