@@ -15,9 +15,7 @@ All requests have 4 versions:
 - `postR`: Like `post`, but takes a subset of a `SimpleRequest` as an additional argument (for example if additional headers are needed).
 - `postR_`: Like `post_`, but takes a subset of a `SimpleRequest` as an additional argument.
 
-`POST` requests also have variations that includes the response headers. `(Tuple (Array ResponseHeader) b)` is returned in place of `b`, where `b` is just `unit` in the `_` versions: `postH`, `postH_`, `postRH`, `postRH_`
-
-`get` and `getR` don't have a underscore version.
+`POST` requests also have variations that includes the response headers. `(Tuple (Array ResponseHeader) b)` is returned in place of `b`, where `b` is just `Unit` in the `_` versions: `postH`, `postH_`, `postRH`, `postRH_`
 
 Requests payload objects must implement an instance of `WriteForeign` and responses payload objects must implement an instance of `ReadForeign`.
 
@@ -30,11 +28,10 @@ versions ending with an underscore) accept a subset of a `SimpleRequest` as
 an argument. 
 
 ```purs
-type SimpleRequest = { headers :: Array RequestHeader
+type SimpleRequest = { headers         :: Array RequestHeader
                      , username        :: Maybe String
                      , password        :: Maybe String
                      , withCredentials :: Boolean
-                     , retryPolicy     :: Maybe RetryPolicy
                      }
 ```
 
@@ -44,6 +41,11 @@ For example:
 getR { withCredentials: true } "http://www.google.it"
 ```
 
+### Headers and MediaType
+
+The default requests sets the header `Accept (MediaType "application/json")`.
+When passing a new headers array, this header should be included again or the request will fail.
+
 ## Errors
 
 The different types of error (`Error`, `ForeignError` and `ResponseFormatError`) are put together in a `Variant`.
@@ -52,7 +54,7 @@ There are two type alias:
 - `HTTPError` containing the common http errors
 - `AjaxError` which extends `HTTPError` to add json parsing errors
 
-By using that library's function, it's possible to match on them:
+By using `Variant`'s functions, it's possible to match on them:
 
 ```purs
 let error = 
@@ -61,12 +63,6 @@ let error =
   # on _badRequest identity
   # on _parseError $ intercalate ", " <<< map renderForeignError
   $ err
-```
-
-## Retries
-
-``` purs
-getR { retryPolicy: defaultRetryPolicy } url
 ```
 
 ## Example usage

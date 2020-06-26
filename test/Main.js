@@ -53,7 +53,7 @@ exports.startServer = function (errback, callback) {
 
   var retry = 0
   app.delete('/timed_fails', function(req, res) {
-    if (retry = 0) {
+    if (retry < 3) {
       retry++
       return
     }

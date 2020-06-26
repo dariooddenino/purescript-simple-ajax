@@ -2,7 +2,6 @@ module Test.Main where
 
 import Prelude
 
-import Affjax as AX
 import Affjax.ResponseHeader (ResponseHeader, name)
 import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.Error.Class (throwError)
@@ -10,7 +9,6 @@ import Data.Array (filter, null)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
 import Data.Symbol (class IsSymbol)
-import Data.Time.Duration (Milliseconds(..))
 import Data.Tuple (Tuple(..))
 import Data.Variant (default, on)
 import Effect (Effect)
@@ -73,10 +71,6 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
   let ok200 = StatusCode 200
   let notFound404 = StatusCode 404
 
-  -- let retryPolicy = AX.defaultRetryPolicy { timeout = Just (Milliseconds 500.0)
-  --                                         , shouldRetryWithStatusCode = \_ -> true
-  --                                         }
-
   { server, port } ← fromEffectFnAff startServer
   finally (fromEffectFnAff (stopServer server)) do
     A.log ("Test server running on port " <> show port)
@@ -89,10 +83,6 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
     let unauthorized = prefix "/unauthorized"
     let doesNotExist = prefix "/does-not-exist"
     let notJson = prefix "/not-json"
-
-    -- A.log "GET /does-not-exist: should be 404 Not found after retries"
-    -- SA.getR { retryPolicy: Just retryPolicy } doesNotExist >>= assertLeft >>= \e -> do
-    --   assertError SAE._notFound e
 
     A.log "GET /does-not-exist: should be 404 Not found"
     SA.get doesNotExist >>= assertLeft >>= \e -> do
@@ -123,10 +113,6 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
     let content = "the quick brown fox jumps over the lazy dog"
     SA.put putUrl (Just content) >>= assertRight >>= \res -> do
       assertEq res { foo: 1, bar: content }
-
-    -- A.log "DELETE on errors with retry"
-    -- SA.deleteR { retryPolicy: Just retryPolicy } timedFailsUrl >>= assertRight >>= \res -> do
-    --   assertEq res { foo: "bar" }
 
     A.log "Testing CORS, HTTPS"
     SA.get "https://cors-test.appspot.com/test" >>= assertRight >>= \res -> do
