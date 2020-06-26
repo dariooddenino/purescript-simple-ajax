@@ -12,7 +12,7 @@ module Simple.Ajax
 
 import Prelude
 
-import Affjax (Request, Response, RetryPolicy, URL, defaultRequest, request, retry)
+import Affjax (Response, URL, defaultRequest, request, Error, printError)
 import Affjax.RequestBody (RequestBody)
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader (RequestHeader(..))
@@ -26,49 +26,43 @@ import Data.Maybe (Maybe(..))
 import Data.MediaType (MediaType(..))
 import Data.Tuple (Tuple(..), snd)
 import Data.Variant (expand, inj)
-import Effect.Aff (Aff, Error, try)
+import Effect.Aff (Aff)
 import Foreign (Foreign)
 import Prim.Row as Row
 import Record as Record
 import Simple.Ajax.Errors (HTTPError, AjaxError, _parseError, _badRequest, _unAuthorized, _forbidden, _notFound, _methodNotAllowed, _formatError, _serverError, mapBasicError, parseError, statusOk)
 import Simple.JSON (class ReadForeign, class WriteForeign, readJSON, writeJSON)
-import Type.Prelude (SProxy(..))
 
 handleResponseH :: 
   forall b.
   ReadForeign b =>
-  Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
+  Either Error (Response String) ->
   Either AjaxError (Tuple (Array ResponseHeader) b)
 handleResponseH res = case res of 
-  Left e -> Left $ inj _serverError $ show e
-  Right response ->
-    case response.body of
-      Left (ResponseFormat.ResponseFormatError err _) -> Left $ inj _formatError err
-      Right j
-        | statusOk response.status -> (Tuple response.headers) <$> (lmap (expand <<< parseError) (readJSON j))
-        | otherwise -> Left $ expand $ mapBasicError response.status j
+  Left e -> Left $ inj _serverError $ printError e
+  Right response
+        | statusOk response.status -> (Tuple response.headers) <$> (lmap (expand <<< parseError) (readJSON response.body))
+        | otherwise -> Left $ expand $ mapBasicError response.status response.body
 
 handleResponse ::
   forall b.
   ReadForeign b =>
-  Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
+  Either Error (Response String) ->
   Either AjaxError b
 handleResponse res = snd <$> (handleResponseH res)
 
 
 handleResponseH_ ::
-  Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
+  Either Error (Response String) ->
   Either HTTPError (Tuple (Array ResponseHeader) Unit)
 handleResponseH_ res = case res of
-  Left e -> Left $ inj _serverError $ show e
-  Right response -> case response.body of
-      Left (ResponseFormat.ResponseFormatError err _) -> Left $ inj _formatError err
-      Right j
+  Left e -> Left $ inj _serverError $ printError e
+  Right response
         | statusOk response.status -> Right (Tuple response.headers unit)
-        | otherwise -> Left $ expand $ mapBasicError response.status j
+        | otherwise -> Left $ expand $ mapBasicError response.status response.body
 
 handleResponse_ ::
-  Either Error (Response (Either ResponseFormat.ResponseFormatError String)) ->
+  Either Error (Response String) ->
   Either HTTPError Unit
 handleResponse_ res = snd <$> (handleResponseH_ res)
 
@@ -99,14 +93,12 @@ type RequestRow a = ( method          :: Either Method CustomMethod
                     , password        :: Maybe String
                     , withCredentials :: Boolean
                     , responseFormat  :: ResponseFormat a
-                    , retryPolicy     :: Maybe RetryPolicy
                     )
 
 type SimpleRequestRow = ( headers         :: Array RequestHeader
                         , username        :: Maybe String
                         , password        :: Maybe String
                         , withCredentials :: Boolean
-                        , retryPolicy     :: Maybe RetryPolicy
                         )
 
 -- | A Request object with only the allowed fields.
@@ -116,11 +108,8 @@ type SimpleRequest = Record SimpleRequestRow
 defaultSimpleRequest :: Record (RequestRow String)
 defaultSimpleRequest = Record.merge { responseFormat : ResponseFormat.string
                                     , headers : [ Accept (MediaType "application/json") ]
-                                    , retryPolicy : Nothing
                                     } defaultRequest
 
-toReq :: Record (RequestRow String) -> Request String
-toReq = Record.delete (SProxy :: SProxy "retryPolicy")
 
 -- | Takes a subset of a `SimpleRequest` and uses it to
 -- | override the fields of the defaultRequest
@@ -155,9 +144,7 @@ simpleRequest method r url content = do
                              , url = url
                              , content = writeContent content
                              }
-  res <- case req.retryPolicy of
-    Nothing -> try $ request $ toReq req
-    Just p -> try $ retry p request $ toReq req
+  res <- request req
   pure $ handleResponse res
 
 
@@ -176,15 +163,13 @@ simpleRequest' ::
   { | r } ->
   URL ->
   Maybe a ->
-  Aff (Either Error (Response (Either ResponseFormat.ResponseFormatError String)))
+  Aff (Either Error (Response String))
 simpleRequest' method r url content = do
   let req = (buildRequest r) { method = method
                              , url = url
                              , content = writeContent content
                              }
-  case req.retryPolicy of
-    Nothing -> try $ request $ toReq req
-    Just p -> try $ retry p request $ toReq req
+  request req
   
 -- | Makes an HTTP request ignoring the response payload.
 -- |
@@ -252,10 +237,9 @@ getR r url = do
                              , url = url
                              , responseFormat = ResponseFormat.string
                              }
-  res <- case req.retryPolicy of
-    Nothing -> try $ request $ toReq req
-    Just p -> try $ retry p request $ toReq req
+  res <- request req
   pure $ handleResponse res
+
 
 -- | Makes a `GET` request, taking an `URL` as argument
 -- | and then tries to parse the response json.
