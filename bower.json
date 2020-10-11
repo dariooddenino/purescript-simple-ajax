@@ -13,7 +13,7 @@
   ],
   "dependencies": {
     "purescript-prelude": "^4.1.1",
-    "purescript-affjax": "^10.1.0",
+    "purescript-affjax": "^11.0.0",
     "purescript-simple-json": "^7.0.0"
   },
   "devDependencies": {

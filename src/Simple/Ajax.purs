@@ -24,6 +24,7 @@ import Data.Either (Either(..))
 import Data.HTTP.Method (CustomMethod, Method(..))
 import Data.Maybe (Maybe(..))
 import Data.MediaType (MediaType(..))
+import Data.Time.Duration (Milliseconds)
 import Data.Tuple (Tuple(..), snd)
 import Data.Variant (expand, inj)
 import Effect.Aff (Aff)
@@ -93,6 +94,7 @@ type RequestRow a = ( method          :: Either Method CustomMethod
                     , password        :: Maybe String
                     , withCredentials :: Boolean
                     , responseFormat  :: ResponseFormat a
+                    , timeout         :: Maybe Milliseconds
                     )
 
 type SimpleRequestRow = ( headers         :: Array RequestHeader
