@@ -68,6 +68,15 @@ let error =
 ## Example usage
 
 ```purs
+import Prelude
+import Data.Either (Either(..))
+import Data.Maybe (Maybe(..))
+import Data.Variant (default, on)
+import Effect (Effect)
+import Effect.Aff (launchAff_)
+import Effect.Class.Console (log, logShow)
+import Simple.Ajax (_unAuthorized, post)
+
 
 payload :: { foo :: Int, bar :: String }
 payload = { foo: 1, bar: "hello" }
@@ -79,12 +88,19 @@ main = launchAff_ $ do
   case res of
     Left err -> do
       let error = 
-        default "Generic error" 
-        # on _notAuthorized $ const "Not authorized" 
-        $ err
+            default "Generic error" 
+            # on _unAuthorized (const "Not authorized") 
+            $ err
       log error
     Right (res :: Baz) ->
       logShow res
+```
+
+**NOTE**: To run this in the console you will need to install `xhr2` (or similar) with `npm`.
+```
+npm init
+npm install xhr2
+spago run
 ```
 
 ## Module documentation
