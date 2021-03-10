@@ -17,9 +17,9 @@ All requests have 4 versions:
 
 `POST` requests also have variations that includes the response headers. `(Tuple (Array ResponseHeader) b)` is returned in place of `b`, where `b` is just `Unit` in the `_` versions: `postH`, `postH_`, `postRH`, `postRH_`
 
-Requests payload objects must implement an instance of `WriteForeign` and responses payload objects must implement an instance of `ReadForeign`.
+Requests payload objects must implement an instance of `EncodeJson` and responses payload objects must implement an instance of `DecodeJson`.
 
-Check [simple-json](https://github.com/justinwoo/purescript-simple-json) documentation to learn more about this.
+Check [argonaut-codecs](https://github.com/purescript-contrib/purescript-argonaut-codecs) documentation to learn more about this.
 
 ## Requests
 
@@ -51,7 +51,7 @@ When passing a new headers array, this header should be included again or the re
 The different types of error (`Error`, `ForeignError` and `ResponseFormatError`) are put together in a `Variant`.
 
 There are two type alias:
-- `HTTPError` containing the common http errors
+- `HTTPError` containing the common http errors and affjax [Error](https://pursuit.purescript.org/packages/purescript-affjax/12.0.0/docs/Affjax#t:Error)
 - `AjaxError` which extends `HTTPError` to add json parsing errors
 
 By using `Variant`'s functions, it's possible to match on them:

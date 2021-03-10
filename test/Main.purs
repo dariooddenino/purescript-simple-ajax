@@ -21,7 +21,7 @@ import Effect.Exception (error, throwException)
 import Prim.Row as Row
 import Simple.Ajax as SA
 import Simple.Ajax.Errors as SAE
-import Type.Prelude (SProxy)
+import Type.Prelude (Proxy)
 
 foreign import logAny :: forall a. a -> Effect Unit
 
@@ -57,7 +57,7 @@ assertError ::
   forall sym a t r.
   IsSymbol sym =>
   Row.Cons sym a t (SAE.BasicErrorRow r) =>
-  SProxy sym ->
+  Proxy sym ->
   SAE.BasicError r ->
   Aff Unit
 assertError s err = default (assertFail "Expected a different status error")
@@ -81,23 +81,28 @@ main = void $ runAff (either (\e -> logShow e *> throwException e) (const $ log 
     let putUrl = prefix "/put"
     let timedFailsUrl = prefix "/timed_fails"
     let unauthorized = prefix "/unauthorized"
-    let doesNotExist = prefix "/does-not-exist"
+    let json404 = prefix "/json-404"
     let notJson = prefix "/not-json"
+    let wrongJson = prefix "/wrong-json"
 
-    A.log "GET /does-not-exist: should be 404 Not found"
-    SA.get doesNotExist >>= assertLeft >>= \e -> do
+    A.log "GET /json-404: should be 404 Not found"
+    SA.get json404 >>= assertLeft >>= \e -> do
       assertError SAE._notFound e
 
     A.log "POST /unauthorized: should return 404 Unauthoized"
     SA.post unauthorized (Just 1) >>= assertLeft >>= \e -> do
       assertError SAE._unAuthorized e
 
+    A.log "GET /wrong-json: should return a parse error"
+    SA.get wrongJson >>= assertLeft >>= \e -> do
+      assertError SAE._parseError e
+
     A.log "GET /mirror: should be 200 OK"
     void $ SA.get mirror >>= \(v :: Either SAE.AjaxError Boolean) -> assertRight v
 
     A.log "GET /not-json: invalid JSON should return an error"
     SA.get notJson >>= assertLeft >>= \e -> do
-      assertError SAE._parseError e
+      assertError SAE._affjaxError e
 
     A.log "POST /register: should return a response header"
     SA.postH_ register (Just {username : "test", password : "test"}) >>= assertRight >>= \(v :: (Tuple (Array ResponseHeader) Unit)) ->

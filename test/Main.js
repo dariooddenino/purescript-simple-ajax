@@ -13,12 +13,19 @@ exports.startServer = function (errback, callback) {
   var bodyParser = require('body-parser');
 
   // Always make req.body available as a String
-  app.use(bodyParser.text(function() { return true; }));
+  // app.use(bodyParser.text(function() { return true; }));
+  app.use(bodyParser.json({
+    strict: false
+  }))
 
   app.use(express.static(__dirname));
 
   app.get('/', function (req, res) {
     res.send('<html><script src="tmp/test.js"></script></html>');
+  });
+
+  app.get('/json-404', function(req, res) {
+    res.status(404).send();
   });
 
   app.get('/arrayview', function(req, res) {
@@ -40,16 +47,20 @@ exports.startServer = function (errback, callback) {
   });
 
   app.all('/mirror', function(req, res) {
-    res.json(JSON.parse(req.body));
+    res.json(req.body);
   });
 
   app.put('/put', function(req, res) {
-    res.json({ foo: 1, bar: JSON.parse(req.body) });
+    res.json({ foo: 1, bar: req.body });
   });
 
   app.post('/unauthorized', function(req,res) {
     res.status(401).send();
   });
+
+  app.get('/wrong-json', function(req, res) {
+    res.json({ bar: 2 });
+  })
 
   var retry = 0
   app.delete('/timed_fails', function(req, res) {
