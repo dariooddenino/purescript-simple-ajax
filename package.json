@@ -16,7 +16,7 @@
   },
   "homepage": "https://github.com/dariooddenino/purescript-simple-ajax#readme",
   "devDependencies": {
-    "express": "^4.16.4",
+    "express": "^4.18.1",
     "xhr2": "^0.1.4"
   }
 }

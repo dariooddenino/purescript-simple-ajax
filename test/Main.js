@@ -1,16 +1,17 @@
-"use strict";
+import express from 'express'
+import bodyParser from 'body-parser'
 
-exports.logAny = function (a) {
+export const logAny = function (a) {
   return function () {
     console.log(a);
     return {};
   };
 };
 
-exports.startServer = function (errback, callback) {
-  var express = require('express');
+export const startServer = function (errback, callback) {
+  // var express = require('express');
   var app = express();
-  var bodyParser = require('body-parser');
+  // var bodyParser = require('body-parser');
 
   // Always make req.body available as a String
   // app.use(bodyParser.text(function() { return true; }));
@@ -18,7 +19,7 @@ exports.startServer = function (errback, callback) {
     strict: false
   }))
 
-  app.use(express.static(__dirname));
+  // app.use(express.static(__dirname));
 
   app.get('/', function (req, res) {
     res.send('<html><script src="tmp/test.js"></script></html>');
@@ -83,7 +84,7 @@ exports.startServer = function (errback, callback) {
   };
 };
 
-exports.stopServer = function (server) {
+export const stopServer = function (server) {
   return function (errback, callback) {
     server.close(function (err) {
       if (err) errback(err);

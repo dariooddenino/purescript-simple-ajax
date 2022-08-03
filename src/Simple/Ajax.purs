@@ -12,7 +12,7 @@ module Simple.Ajax
 
 import Prelude
 
-import Affjax (Response, URL, defaultRequest, request, Error)
+import Affjax.Web (Response, URL, defaultRequest, request, Error)
 import Affjax.RequestBody (RequestBody)
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader (RequestHeader(..))
