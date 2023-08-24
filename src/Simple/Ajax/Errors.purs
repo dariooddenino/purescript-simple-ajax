@@ -14,6 +14,9 @@ module Simple.Ajax.Errors
   , _affjaxError
   , mapBasicError
   , parseError
+  , showAjaxError
+  , showError
+  , showHttpError
   , statusOk
   ) where
 
@@ -23,7 +26,7 @@ import Affjax as AX
 import Affjax.StatusCode (StatusCode(..))
 import Data.Argonaut.Decode (JsonDecodeError)
 import Data.Maybe (Maybe, fromMaybe)
-import Data.Variant (Variant, inj)
+import Data.Variant (Variant, inj, on)
 import Type.Prelude (Proxy(..))
 
 -- | Basic error type containing the common http errors.
@@ -69,3 +72,19 @@ mapBasicError (StatusCode n) m
 
 parseError :: JsonDecodeError -> Variant ParseError
 parseError = inj _parseError
+
+showError :: forall e. (Variant e -> String) -> BasicError e -> String
+showError =
+      on _badRequest (\s -> "Bad request: " <> s)
+  >>> on _unAuthorized (const "Unauthorized")
+  >>> on _forbidden (const "Forbidden")
+  >>> on _notFound (const "Not found")
+  >>> on _methodNotAllowed (const "Method not allowed")
+  >>> on _serverError (\s -> "Server error: " <> s)
+  >>> on _affjaxError (\e -> "Affjax error: " <> AX.printError e)
+
+showHttpError :: HTTPError -> String
+showHttpError = showError (const "Http error")
+
+showAjaxError :: AjaxError -> String
+showAjaxError = showError (\pe -> "Parse error: " <> show pe)
